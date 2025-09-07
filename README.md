@@ -64,6 +64,29 @@ See [`src/c/tri_tri_affine.c`](src/c/tri_tri_affine.c) for a C implementation.
 
 ---
 
+## Build & Run
+
+You can build and run the C test harness included in `src/c` to verify the algorithm.
+
+The test program runs a few sample triangle–triangle intersection cases and prints YES or NO for each.
+
+### Using Make
+```bash
+cd src/c
+make
+./tri_test
+```
+
+### Using CMake
+```cd src/c
+mkdir build && cd build
+cmake ..
+cmake --build .
+./tri_test
+```
+
+---
+
 ## License
 
 This work is dedicated to the public domain under CC0 1.0.
