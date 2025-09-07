@@ -6,7 +6,7 @@ LDFLAGS ?=
 all: tri_test
 
 tri_test: tri_tri_affine.c tri_test.c
-    $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-    rm -f tri_test
+	rm -f tri_test
