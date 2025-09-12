@@ -1,6 +1,4 @@
-package ak.xdiff;
-
-import java.util.Arrays;
+package com.alexkonshin;
 
 /**
  * Reference implementation of triangle–triangle intersection via affine normal basis.
@@ -93,30 +91,26 @@ public final class Face {
         // 7) Clip that line by triangle A’s simplex: x>=0, y>=0, x+y<=1
         // Represent chord within A by the range s = x + y in [p0, p1]
         float p0, p1;
-        if (in01(x0)) {
-            // Point at (x0, 0) is on edge y=0
-            if (!in01(y0)) {
-                // Clip against line x+y=1 at y=1-x0
-                p0 = Math.max(0f, 0f); // s at (x0,0) = x0
-                p1 = 1f;               // s at intersection with x+y=1
-                float sA = x0;
-                p0 = sA;
+        if (x0 >= 0f && x0 <= 1f) { // TODO compare with EPS
+            if (y0 <= 0f || y0 > 1f) { // Side effect for the special case x0 = y0 = 0 => p0=0 & p1=1
+                p0 = x0;
+                p1 = 1f;
+            } else if (x0 > y0) {
+                p0 = y0;
+                p1 = x0;
             } else {
-                // Both intercepts exist within edges: segment runs between (x0,0) and (0,y0)
-                float sA = x0;
-                float sB = y0;
-                p0 = Math.min(sA, sB);
-                p1 = Math.max(sA, sB);
+                p0 = x0;
+                p1 = y0;
             }
-        } else if (in01(y0)) {
-            // Only (0,y0) on edge x=0
+        } else if (y0 >= 0f && y0 <= 1f) {
             p0 = y0;
-            p1 = 1f; // clip against x+y=1
+            p1 = 1f;
         } else {
             // The chord with A might hit the diagonal x+y=1 twice or miss; use robust clipping
             float[] chord = clipLineAgainstSimplex(rnx, rny, d);
             if (chord == null) return false;
-            p0 = chord[0]; p1 = chord[1];
+            p0 = chord[0];
+            p1 = chord[1];
         }
 
         // 8) Intersect other triangle edges with z=0, collect two points, compute s=x+y for them
@@ -125,8 +119,9 @@ public final class Face {
             // Either coplanar with z=0 or no intersections within edges
             return coplanarIntersectInLocal(b1, b2, b3);
         }
-        float s0 = Math.min(sB[0], sB[1]);
-        float s1 = Math.max(sB[0], sB[1]);
+        // sB is already sorted (s0 <= s1)
+        float s0 = sB[0];
+        float s1 = sB[1];
 
         // 9) Overlap test of intervals [s0, s1] vs [p0, p1]
         if (s1 < p0 - EPS || s0 > p1 + EPS) return false;
@@ -134,8 +129,6 @@ public final class Face {
     }
 
     // --- Internal helpers
-
-    private boolean in01(float t) { return t >= -EPS && t <= 1f + EPS; }
 
     private float[] getMinMax() {
         if (minmax != null) return minmax;
@@ -211,63 +204,106 @@ public final class Face {
         // y=0 => x = d/rnx
         // x=0 => y = d/rny
         // x+y=1 => substitute y=1-x => (rnx - rny)*x + rny = d => x = (d - rny) / (rnx - rny)
-        float[] sVals = new float[0];
-
+      
+        float s0 = Float.NaN;
+        float s1 = Float.NaN;
+        
+        int count = 0;
+        
         // candidate at (x0,0)
         if (Math.abs(rnx) > EPS) {
             float x0 = d / rnx;
-            if (x0 >= -EPS && x0 <= 1f + EPS) sVals = appendS(sVals, x0 + 0f);
+            if (x0 >= -EPS && x0 <= 1f + EPS) {
+              count = 1;
+              s0 = x0;
+            }
         }
         // candidate at (0,y0)
         if (Math.abs(rny) > EPS) {
             float y0 = d / rny;
-            if (y0 >= -EPS && y0 <= 1f + EPS) sVals = appendS(sVals, 0f + y0);
+            if (y0 >= -EPS && y0 <= 1f + EPS) {
+              if (count == 0) 
+                s0 = y0;
+              else
+                s1 = y0;
+            }
         }
+        if (count == 0) return null; // no intersections. 
+        
+        if (count == 2 && s0 > s1) {
+            // swap s1 and s2
+            float t = s0;
+            s0 = s1;
+            s1 = t;
+        }
+        
         // candidate at x+y=1
         if (Math.abs(rnx - rny) > EPS) {
             float x = (d - rny) / (rnx - rny);
-            float y = 1f - x;
-            if (x >= -EPS && y >= -EPS && x <= 1f + EPS && y <= 1f + EPS) {
-                sVals = appendS(sVals, x + y); // equals 1
+            if (x > -EPS && x < 1f + EPS) {
+                // add x + y = 1 to result
+                s1 = 1f;
+                count++;
             }
         }
-
-        if (sVals.length < 2) return null;
-        Arrays.sort(sVals);
-        return new float[]{sVals[0], sVals[sVals.length - 1]};
-    }
-
-    private float[] appendS(float[] arr, float s) {
-        float[] out = Arrays.copyOf(arr, arr.length + 1);
-        out[arr.length] = s;
-        return out;
+        if (count < 2) s1 = s0; // touching single point        
+        return new float[] {s0, s1};
     }
 
     // Intersect the three edges of triangle B with plane z=0 in local space; return two s=x+y values
     private float[] intersectTriangleEdgesWithPlaneZ0(Vec3 b1, Vec3 b2, Vec3 b3) {
-        float[] s = new float[0];
-        s = maybeAppendIntersectionS(s, b1, b2);
-        s = maybeAppendIntersectionS(s, b1, b3);
-        s = maybeAppendIntersectionS(s, b2, b3);
-        if (s.length == 2) return s;
-        if (s.length > 2) {
-            // Multiple intersections due to coplanarity or tangency; keep extreme values
-            Arrays.sort(s);
-            return new float[]{s[0], s[s.length - 1]};
+        int count = 0;
+        float[] result = new float[3];
+        count = maybeAppendIntersectionS(b1, b2, result, count);
+        count = maybeAppendIntersectionS(b1, b3, result, count);
+        count = maybeAppendIntersectionS(b2, b3, result, count);
+        switch(count) {
+        
+        case 0: return null;
+        
+        case 1: {
+          // single point touch 
+          result[1] = result[0];
+          break; 
         }
-        return null;
+        
+        case 2: {
+          float s0 = result[0];
+          float s1 = result[1];
+          if (s0 > s1) { // swap
+            result[0] = s1;
+            result[1] = s0;
+          }
+          break;
+        }
+        
+        default: // count > 2  ==> Multiple intersections due to coplanarity or tangency; keep extreme values
+          float min = result[0];
+          float max = min;
+          
+          float t = result[1];
+          if (t < min) min = t;
+          else if (t > max) max = t;
+          
+          t = result[2];
+          if (t < min) min = t;
+          else if (t > max) max = t;
+          
+          result[0] = min;
+          result[1] = max;
+        }
+        return result;
     }
-
-    private float[] maybeAppendIntersectionS(float[] s, Vec3 a, Vec3 b) {
-        float za = a.z, zb = b.z;
-        float da = za, db = zb;
+    
+    private int maybeAppendIntersectionS(Vec3 a, Vec3 b, float[] result, int count) {
+        final float za = a.z, zb = b.z;
 
         // If both endpoints are very close to plane, treat as coplanar edge (skip here, handle elsewhere)
-        if (Math.abs(da) <= PLANE_EPS && Math.abs(db) <= PLANE_EPS) return s;
+        if (Math.abs(za) <= PLANE_EPS && Math.abs(zb) <= PLANE_EPS) return count;
 
         // If signs differ or one is on plane, compute intersection
-        if ((da > PLANE_EPS && db < -PLANE_EPS) || (da < -PLANE_EPS && db > PLANE_EPS) ||
-            Math.abs(da) <= PLANE_EPS || Math.abs(db) <= PLANE_EPS) {
+        if ((za > PLANE_EPS && zb < -PLANE_EPS) || (za < -PLANE_EPS && zb > PLANE_EPS) ||
+            Math.abs(za) <= PLANE_EPS || Math.abs(zb) <= PLANE_EPS) {
 
             float t;
             if (Math.abs(za - zb) > EPS) {
@@ -278,11 +314,10 @@ public final class Face {
             if (t >= -EPS && t <= 1f + EPS) {
                 float x = a.x + t * (b.x - a.x);
                 float y = a.y + t * (b.y - a.y);
-                float sVal = x + y;
-                s = appendS(s, sVal);
+                result[count++] = x + y;
             }
         }
-        return s;
+        return count;
     }
 
     // Coplanar case in local coords (z ~ 0 for all vertices or edges) → 2D triangle overlap in (x,y) with simplex constraint of A
@@ -347,20 +382,24 @@ public final class Face {
         public final float x, y, z;
         public Vertex(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public Vec3 toVec3() { return new Vec3(x, y, z); }
+        @Override
+        public String toString() { return String.format( "(%f, %f, %f)", x, y, z ); }
     }
 
     private static final class Vec3 {
         final float x, y, z;
         Vec3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        Vec3 add(Vec3 o) { return new Vec3(x + o.x, y + o.y, z + o.z); }
+        //Vec3 add(Vec3 o) { return new Vec3(x + o.x, y + o.y, z + o.z); }
         Vec3 sub(Vec3 o) { return new Vec3(x - o.x, y - o.y, z - o.z); }
         Vec3 scale(float s) { return new Vec3(x * s, y * s, z * s); }
-        float dot(Vec3 o) { return x * o.x + y * o.y + z * o.z; }
-        Vec3 cross(Vec3 o) { return new Vec3(
-            y * o.z - z * o.y,
-            z * o.x - x * o.z,
-            x * o.y - y * o.x
-        ); }
+        //float dot(Vec3 o) { return x * o.x + y * o.y + z * o.z; }
+        Vec3 cross(Vec3 o) {
+            return new Vec3(
+                y * o.z - z * o.y,
+                z * o.x - x * o.z,
+                x * o.y - y * o.x
+            );
+        }
         float length() { return (float)Math.sqrt(x * x + y * y + z * z); }
     }
 
@@ -389,4 +428,8 @@ public final class Face {
         float dx = a.x - b.x, dy = a.y - b.y;
         return dx*dx + dy*dy;
     }
+
+    @Override
+    public String toString() {  return "{ "+v[0].toString()+", "+v[1].toString()+", "+v[2].toString()+" }";  }
+    
 }
