@@ -46,15 +46,19 @@ public final class Face {
             b[5] < a[4] || b[4] > a[5]) {
             return false;
         }
-
-        // 2) Ensure transform of this face is ready (this face becomes local XY; its normal is +Z)
-        ensureTransform();
+        if (!hasTransform()) {
+          if (other.hasTransform())
+            return other.intersects(this); // other face already has transformation matrix
+          
+          // 2) Ensure transform of this face is ready (this face becomes local XY; its normal is +Z)
+          computeTransform();
+        }
 
         // 3) Transform other’s vertices into this local space
-        Vec3 q1 = v[0].toVec3();
-        Vec3 b1 = worldToLocal(other.v[0].toVec3().sub(q1));
-        Vec3 b2 = worldToLocal(other.v[1].toVec3().sub(q1));
-        Vec3 b3 = worldToLocal(other.v[2].toVec3().sub(q1));
+        Vertex q1 = v[0];
+        Vertex b1 = worldToLocal(other.v[0].sub(q1));
+        Vertex b2 = worldToLocal(other.v[1].sub(q1));
+        Vertex b3 = worldToLocal(other.v[2].sub(q1));
 
         // 4) Quick plane-side test for z=0
         int pos = (b1.z > PLANE_EPS ? 1 : 0) + (b2.z > PLANE_EPS ? 1 : 0) + (b3.z > PLANE_EPS ? 1 : 0);
@@ -62,9 +66,9 @@ public final class Face {
         if (pos == 3 || neg == 3) return false; // entirely on one side of plane z=0
 
         // 5) Compute normal of other triangle in local space (only x,y matter in z=0)
-        Vec3 e12 = b2.sub(b1);
-        Vec3 e13 = b3.sub(b1);
-        Vec3 nB = e12.cross(e13); // components (rnx, rny, rnz) in local coordinates
+        Vertex e12 = b2.sub(b1);
+        Vertex e13 = b3.sub(b1);
+        Vertex nB = e12.cross(e13); // components (rnx, rny, rnz) in local coordinates
 
         // If nB is near-zero, other face is degenerate (collinear or tiny)
         if (nB.length() < EPS) {
@@ -132,18 +136,62 @@ public final class Face {
 
     private float[] getMinMax() {
         if (minmax != null) return minmax;
+        /*
         float xmin = Math.min(v[0].x, Math.min(v[1].x, v[2].x));
         float xmax = Math.max(v[0].x, Math.max(v[1].x, v[2].x));
         float ymin = Math.min(v[0].y, Math.min(v[1].y, v[2].y));
         float ymax = Math.max(v[0].y, Math.max(v[1].y, v[2].y));
         float zmin = Math.min(v[0].z, Math.min(v[1].z, v[2].z));
         float zmax = Math.max(v[0].z, Math.max(v[1].z, v[2].z));
-        minmax = new float[]{xmin, xmax, ymin, ymax, zmin, zmax};
-        return minmax;
-    }
+        */
+        
+        Vertex v0 = v[0];
+        Vertex v1 = v[1];
+        Vertex v2 = v[2];
+        
+        float[] minmax = new float[6];
+        
+        float min, max, t;
+        
+        max = min = v0.x;
+        t = v1.x;
+        if (t < min) min = t;
+        else if (t > max) max = t;
+        t = v2.x;
+        if (t < min) min = t;
+        else if (t > max) max = t;
+        
+        minmax[0] = min;
+        minmax[1] = max;
+        
+        max = min = v0.y;
+        t = v1.y;
+        if (t < min) min = t;
+        else if (t > max) max = t;
+        t = v2.y;
+        if (t < min) min = t;
+        else if (t > max) max = t;
+        
+        minmax[2] = min;
+        minmax[3] = max;
+        
+        max = min = v0.z;
+        t = v1.z;
+        if (t < min) min = t;
+        else if (t > max) max = t;
+        t = v2.z;
+        if (t < min) min = t;
+        else if (t > max) max = t;
 
-    private void ensureTransform() {
-        if (!Float.isNaN(r33)) return; // already computed
+        minmax[4] = min;
+        minmax[5] = max;
+        
+        return this.minmax = minmax;
+    }
+    
+    private boolean hasTransform() { return !Float.isNaN(r33); } 
+
+    private void computeTransform() {
         if (Float.isNaN(nx)) computeNormal();
 
         Vertex q1 = v[0];
@@ -178,20 +226,44 @@ public final class Face {
     }
 
     private void computeNormal() {
-        Vec3 e1 = v[1].toVec3().sub(v[0].toVec3());
-        Vec3 e2 = v[2].toVec3().sub(v[0].toVec3());
-        Vec3 n = e1.cross(e2);
+        /*
+        Vertex e1 = v[1].sub(v[0]);
+        Vertex e2 = v[2].sub(v[0]);
+        Vertex n = e1.cross(e2);
         float len = n.length();
-        if (len < EPS) {
-            throw new IllegalStateException("Degenerate triangle: normal is undefined.");
-        }
+        if (len < EPS) throw new IllegalStateException("Degenerate triangle: normal is undefined.");
+        
         n = n.scale(1f / len);
         nx = n.x; ny = n.y; nz = n.z;
+        */
+        
+        Vertex v1 = v[0];
+        Vertex v2 = v[1];
+        Vertex v3 = v[2];
+    
+        float ax = v2.x-v1.x;
+        float ay = v2.y-v1.y;
+        float az = v2.z-v1.z;
+    
+        float bx = v3.x-v1.x;
+        float by = v3.y-v1.y;
+        float bz = v3.z-v1.z;
+    
+        float nx = ay*bz - az*by;
+        float ny = az*bx - ax*bz;
+        float nz = ax*by - ay*bx;
+    
+        float nmod = (float)Math.sqrt(nx*nx+ny*ny+nz*nz);
+        if (nmod < EPS) throw new IllegalStateException("Degenerate triangle: normal is undefined.");
+        
+        this.ny = ny / nmod;
+        this.nz = nz / nmod;
+        this.nx = nx / nmod;
     }
 
-    private Vec3 worldToLocal(Vec3 d) {
+    private Vertex worldToLocal(Vertex d) {
         // Apply rows of inverse matrix to vector (point relative to q1)
-        return new Vec3(
+        return new Vertex(
             r11 * d.x + r12 * d.y + r13 * d.z,
             r21 * d.x + r22 * d.y + r23 * d.z,
             r31 * d.x + r32 * d.y + r33 * d.z
@@ -251,7 +323,7 @@ public final class Face {
     }
 
     // Intersect the three edges of triangle B with plane z=0 in local space; return two s=x+y values
-    private float[] intersectTriangleEdgesWithPlaneZ0(Vec3 b1, Vec3 b2, Vec3 b3) {
+    private float[] intersectTriangleEdgesWithPlaneZ0(Vertex b1, Vertex b2, Vertex b3) {
         int count = 0;
         float[] result = new float[3];
         count = maybeAppendIntersectionS(b1, b2, result, count);
@@ -295,7 +367,7 @@ public final class Face {
         return result;
     }
     
-    private int maybeAppendIntersectionS(Vec3 a, Vec3 b, float[] result, int count) {
+    private int maybeAppendIntersectionS(Vertex a, Vertex b, float[] result, int count) {
         final float za = a.z, zb = b.z;
 
         // If both endpoints are very close to plane, treat as coplanar edge (skip here, handle elsewhere)
@@ -321,7 +393,7 @@ public final class Face {
     }
 
     // Coplanar case in local coords (z ~ 0 for all vertices or edges) → 2D triangle overlap in (x,y) with simplex constraint of A
-    private boolean coplanarIntersectInLocal(Vec3 b1, Vec3 b2, Vec3 b3) {
+    private boolean coplanarIntersectInLocal(Vertex b1, Vertex b2, Vertex b3) {
         // Treat A as triangle with corners (0,0), (1,0), (0,1).
         Vec2[] A = new Vec2[]{new Vec2(0,0), new Vec2(1,0), new Vec2(0,1)};
         Vec2[] B = new Vec2[]{new Vec2(b1.x, b1.y), new Vec2(b2.x, b2.y), new Vec2(b3.x, b3.y)};
@@ -329,7 +401,7 @@ public final class Face {
     }
 
     // Degenerate B (nearly collinear) → intersect its segment hull with A’s simplex
-    private boolean degenerateTriangleIntersectInLocal(Vec3 b1, Vec3 b2, Vec3 b3) {
+    private boolean degenerateTriangleIntersectInLocal(Vertex b1, Vertex b2, Vertex b3) {
         // Project to 2D, take convex hull (segment/point), test against A in 2D
         Vec2[] A = new Vec2[]{new Vec2(0,0), new Vec2(1,0), new Vec2(0,1)};
         Vec2[] B = segmentHull2D(new Vec2(b1.x, b1.y), new Vec2(b2.x, b2.y), new Vec2(b3.x, b3.y));
@@ -381,26 +453,20 @@ public final class Face {
     public static final class Vertex {
         public final float x, y, z;
         public Vertex(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        public Vec3 toVec3() { return new Vec3(x, y, z); }
+        public Vertex sub(Vertex o) { return new Vertex(x - o.x, y - o.y, z - o.z); }
+        //Vertex add(Vertex o) { return new Vertex(x + o.x, y + o.y, z + o.z); }
+        public Vertex scale(float s) { return new Vertex(x * s, y * s, z * s); }
+        //public float dot(Vertex o) { return x * o.x + y * o.y + z * o.z; }
+        public Vertex cross(Vertex o) {
+          return new Vertex(
+                  y * o.z - z * o.y,
+                  z * o.x - x * o.z,
+                  x * o.y - y * o.x
+              );
+        }
+        public float length() { return (float)Math.sqrt(x * x + y * y + z * z); }
         @Override
         public String toString() { return String.format( "(%f, %f, %f)", x, y, z ); }
-    }
-
-    private static final class Vec3 {
-        final float x, y, z;
-        Vec3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        //Vec3 add(Vec3 o) { return new Vec3(x + o.x, y + o.y, z + o.z); }
-        Vec3 sub(Vec3 o) { return new Vec3(x - o.x, y - o.y, z - o.z); }
-        Vec3 scale(float s) { return new Vec3(x * s, y * s, z * s); }
-        //float dot(Vec3 o) { return x * o.x + y * o.y + z * o.z; }
-        Vec3 cross(Vec3 o) {
-            return new Vec3(
-                y * o.z - z * o.y,
-                z * o.x - x * o.z,
-                x * o.y - y * o.x
-            );
-        }
-        float length() { return (float)Math.sqrt(x * x + y * y + z * z); }
     }
 
     private static final class Vec2 {
