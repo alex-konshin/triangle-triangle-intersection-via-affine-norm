@@ -1,6 +1,11 @@
 // src/c/tri_tri_affine.c
 // CC0 1.0 — Public Domain
 
+// This C implementation is provided for demonstration purposes only.
+// It illustrates the core idea of the algorithm and is not intended
+// to cover all possible edge or degenerate cases.
+// It is also not optimized for high performance.
+
 #include <math.h>
 #include <stdbool.h>
 
