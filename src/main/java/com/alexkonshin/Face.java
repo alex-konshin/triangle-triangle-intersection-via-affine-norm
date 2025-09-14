@@ -95,8 +95,9 @@ public final class Face {
         // 7) Clip that line by triangle A’s simplex: x>=0, y>=0, x+y<=1
         // Represent chord within A by the range s = x + y in [p0, p1]
         float p0, p1;
-        if (x0 >= 0f && x0 <= 1f) { // TODO compare with EPS
-            if (y0 <= 0f || y0 > 1f) { // Side effect for the special case x0 = y0 = 0 => p0=0 & p1=1
+        
+        if (x0 >= -EPS && x0 <= 1f + EPS) {
+            if (y0 <= EPS || y0 > 1f + EPS) { // Includes side effect for the special case x0 = y0 = 0 => p0=0 & p1=1
                 p0 = x0;
                 p1 = 1f;
             } else if (x0 > y0) {
@@ -106,9 +107,9 @@ public final class Face {
                 p0 = x0;
                 p1 = y0;
             }
-        } else if (y0 >= 0f && y0 <= 1f) {
+        } else if (y0 >= -EPS && y0 <= 1f + EPS) {
             p0 = y0;
-            p1 = 1f;
+            p1 = 1f;        
         } else {
             // The chord with A might hit the diagonal x+y=1 twice or miss; use robust clipping
             float[] chord = clipLineAgainstSimplex(rnx, rny, d);

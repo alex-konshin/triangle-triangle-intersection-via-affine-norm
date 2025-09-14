@@ -100,6 +100,125 @@ class FaceTest {
 
   }
   
+  @Test
+  void test2() {
+    System.err.println("test2 ======== Edge cases =========");
+    
+    // 1. Intersection along OY axis
+    testIntersection("1.1 Touching along OY edge",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.0f, 0.0f, -1.0f,
+           0.0f, 1.0f, -1.0f,
+           0.0f, 0.5f, 1.0f
+        ),
+        true
+    );
+    
+    testIntersection("1.2 Touching at vertex on OY",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.0f, 0.5f, 0.0f,
+           0.5f, 0.5f, 0.0f,
+           0.5f, 1.0f, 0.0f
+        ),
+        true
+    );
+    
+    // 2. Intersection along diagonal x + y = 1
+    testIntersection("2.1 Touching along diagonal x+y=1",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 1.0f, 0.0f, -1.0f,
+           0.0f, 1.0f, -1.0f,
+           1.2f, -0.2f, 0.0f
+        ),
+        true
+    );
+    
+    testIntersection("2.2 Touching at vertex on diagonal x+y=1",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.5f, 0.5f, 0.0f,
+           0.7f, 0.3f, 0.0f,
+           0.3f, 0.7f, 0.0f
+        ),
+        true
+    );
+    
+    // 3. Vertex of unit triangle inside the other triangle
+    testIntersection("3.1 Vertex (0,0,0) inside other triangle",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( -0.1f, -0.1f, 0.0f,
+           0.5f, -0.1f, 0.0f,
+           -0.1f, 0.5f, 0.0f
+        ),
+        true
+    );
+    
+    testIntersection("3.2 Vertex (1,0,0) inside other triangle",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.9f, -0.1f, 0.0f,
+           1.5f, -0.1f, 0.0f,
+           0.9f, 0.5f, 0.0f
+        ),
+        true
+    );
+    
+    // 4. Coplanar cases
+    testIntersection("4.1 Coplanar identical triangles",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        true
+    );
+    
+    testIntersection("4.2 Coplanar partial overlap",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 0.5f, 0.0f, 0.0f,
+           1.5f, 0.0f, 0.0f,
+           0.5f, 1.0f, 0.0f
+        ),
+        true
+    );
+    
+    testIntersection("4.3 Coplanar touching at edge",
+        t( 0.0f, 0.0f, 0.0f,
+           1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f
+        ),
+        t( 1.0f, 0.0f, 0.0f,
+           0.0f, 1.0f, 0.0f,
+           1.0f, 1.0f, 0.0f
+        ),
+        true
+    );
+    
+  }
+  
+  
   private void testIntersection( String comment, Face tri1, Face tri2, boolean expected ) {
     boolean actual = tri1.intersects( tri2 );
 
