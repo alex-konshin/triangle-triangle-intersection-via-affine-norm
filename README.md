@@ -60,8 +60,8 @@ For coplanar overlap, compute the 2D intersection polygon in (x,y) and map each 
 
 ## Reference implementation
 
-##№ Java implementation
-See the full Java source code [here](/triangle-triangle-intersection-via-affine-norm/src/main/java/com/alexkonshin/Face.java).
+### Java implementation
+See the full Java source code [here](/triangle-triangle-intersection-via-affine-norm/blob/main/rc/main/java/com/alexkonshin/Face.java).
 
 ### C implementation
 See [`src/c/tri_tri_affine.c`](src/c/tri_tri_affine.c) for a C implementation.
@@ -71,20 +71,21 @@ See [`src/c/tri_tri_affine.c`](src/c/tri_tri_affine.c) for a C implementation.
 
 ---
 
-## Build & Run
+### Build & Run
+
+Gradle build script is provided to build and test Java source code.
 
 You can build and run the C test harness included in `src/c` to verify the algorithm.
-
 The test program runs a few sample triangle–triangle intersection cases and prints YES or NO for each.
 
-### Using Make
+#### Using Make
 ```bash
 cd src/c
 make
 ./tri_test
 ```
 
-### Using CMake
+#### Using CMake
 ```cd src/c
 mkdir build && cd build
 cmake ..
