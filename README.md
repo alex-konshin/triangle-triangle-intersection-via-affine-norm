@@ -61,7 +61,7 @@ For coplanar overlap, compute the 2D intersection polygon in (x,y) and map each 
 ## Reference implementation
 
 ### Java implementation
-See the full Java source code [here](/triangle-triangle-intersection-via-affine-norm/blob/main/rc/main/java/com/alexkonshin/Face.java).
+See the full Java source code [here](src/main/java/com/alexkonshin/Face.java).
 
 ### C implementation
 See [`src/c/tri_tri_affine.c`](src/c/tri_tri_affine.c) for a C implementation.
